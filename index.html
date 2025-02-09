@@ -52,7 +52,6 @@
             max-height: 300px;
             overflow-y: auto;
         }
-        /* Search icon styles */
         .search-icon-svg {
             width: 20px;
             height: 20px;
@@ -78,7 +77,6 @@
             });
         };
 
-        // Search icon component (replacing Lucide)
         const SearchIcon = () => {
             return React.createElement('svg', {
                 xmlns: 'http://www.w3.org/2000/svg',
@@ -102,6 +100,7 @@
             const [filteredEvents, setFilteredEvents] = React.useState({});
             const [loading, setLoading] = React.useState(true);
             const [error, setError] = React.useState(null);
+            const [hasUserTyped, setHasUserTyped] = React.useState(false);
 
             React.useEffect(() => {
                 const loadEvents = async () => {
@@ -112,7 +111,7 @@
                         }
                         const data = await response.json();
                         setEvents(data);
-                        // Only show event 1100 by default
+                        // Show only event 1100 by default
                         setFilteredEvents({ "1100": data["1100"] });
                         setLoading(false);
                     } catch (err) {
@@ -124,9 +123,12 @@
             }, []);
 
             React.useEffect(() => {
+                if (!hasUserTyped) {
+                    return;
+                }
+
                 if (!searchTerm.trim()) {
-                    // Show only event 1100 when search is empty
-                    setFilteredEvents({ "1100": events["1100"] });
+                    setFilteredEvents({});
                     return;
                 }
 
@@ -134,13 +136,11 @@
                 const filtered = Object.entries(events).reduce((acc, [id, event]) => {
                     const searchString = `${id} ${event.summary} ${event.description} ${event.category} ${event.subcategory}`.toLowerCase();
                     
-                    // If the search term is numeric, prioritize exact Event ID matches
                     if (/^\d+$/.test(searchTerm)) {
                         if (id.startsWith(searchTerm)) {
                             acc[id] = event;
                         }
                     } else {
-                        // For text searches, include if any field contains the search term
                         if (searchString.includes(searchTermLower)) {
                             acc[id] = event;
                         }
@@ -148,7 +148,6 @@
                     return acc;
                 }, {});
 
-                // If no matches found and searching for a number, try partial matches
                 if (Object.keys(filtered).length === 0 && /^\d+$/.test(searchTerm)) {
                     Object.entries(events).forEach(([id, event]) => {
                         if (id.includes(searchTerm)) {
@@ -158,7 +157,16 @@
                 }
 
                 setFilteredEvents(filtered);
-            }, [searchTerm, events]);
+            }, [searchTerm, events, hasUserTyped]);
+
+            const handleSearchChange = (e) => {
+                if (!hasUserTyped) {
+                    setHasUserTyped(true);
+                    setSearchTerm('');
+                } else {
+                    setSearchTerm(e.target.value);
+                }
+            };
 
             const SecurityImpactBadge = ({ impact }) => {
                 const colors = {
@@ -191,8 +199,9 @@
                         React.createElement(Input, {
                             type: 'text',
                             placeholder: 'Search by Event ID, summary, or description...',
-                            value: searchTerm,
-                            onChange: (e) => setSearchTerm(e.target.value)
+                            value: hasUserTyped ? searchTerm : '1100',
+                            onChange: handleSearchChange,
+                            className: !hasUserTyped ? 'text-gray-500' : ''
                         })
                     )
                 ),
