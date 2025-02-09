@@ -51,6 +51,14 @@
             font-size: 0.875rem;
             max-height: 300px;
             overflow-y: auto;
+            line-height: 1.5;
+            tab-size: 2;
+        }
+        
+        .os-list {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-top: 0.5rem;
         }
         .search-icon-svg {
             width: 20px;
@@ -75,6 +83,28 @@
                 className: `input ${className}`,
                 ...props 
             });
+        };
+
+        // Function to format XML with proper indentation
+        const formatXML = (xml) => {
+            let formatted = '';
+            let indent = '';
+            
+            xml.split(/>\s*</).forEach(function(node) {
+                if (node.match(/^\/\w/)) {
+                    // If this is a closing tag, decrease indent
+                    indent = indent.substring(2);
+                }
+                
+                formatted += indent + '<' + node + '>\n';
+                
+                if (node.match(/^<?\w[^>]*[^\/]$/)) {
+                    // If this is an opening tag (and not self-closing), increase indent
+                    indent += '  ';
+                }
+            });
+            
+            return formatted.substring(1, formatted.length - 2);
         };
 
         const SearchIcon = () => {
@@ -253,11 +283,15 @@
                                 ),
                                 event.event_xml && React.createElement('div', null,
                                     React.createElement('h3', { className: 'font-semibold mb-2' }, 'Event XML'),
-                                    React.createElement('pre', null, event.event_xml)
+                                    React.createElement('pre', null, formatXML(event.event_xml))
                                 ),
                                 React.createElement('div', null,
                                     React.createElement('h3', { className: 'font-semibold mb-2' }, 'Supported Operating Systems'),
-                                    React.createElement('p', null, event.operating_systems)
+                                    React.createElement('ul', { className: 'os-list' }, 
+                                        event.operating_systems.split(',').map(os => 
+                                            React.createElement('li', { key: os.trim() }, os.trim())
+                                        )
+                                    )
                                 )
                             )
                         )
