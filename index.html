@@ -7,10 +7,13 @@
     <!-- React -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Tailwind CSS -->
-    <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Tailwind CSS - Production version -->
+    <script src="https://unpkg.com/tailwindcss-jit-cdn"></script>
+    <style type="text/tailwindcss">
+        @tailwind base;
+        @tailwind components;
+        @tailwind utilities;
+    </style>
     <style>
         .card {
             background: white;
@@ -49,6 +52,15 @@
             max-height: 300px;
             overflow-y: auto;
         }
+        /* Search icon styles */
+        .search-icon-svg {
+            width: 20px;
+            height: 20px;
+            position: absolute;
+            left: 0.75rem;
+            top: 0.75rem;
+            color: #9ca3af;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -64,6 +76,23 @@
                 className: `input ${className}`,
                 ...props 
             });
+        };
+
+        // Search icon component (replacing Lucide)
+        const SearchIcon = () => {
+            return React.createElement('svg', {
+                xmlns: 'http://www.w3.org/2000/svg',
+                viewBox: '0 0 24 24',
+                fill: 'none',
+                stroke: 'currentColor',
+                strokeWidth: '2',
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round',
+                className: 'search-icon-svg'
+            }, [
+                React.createElement('circle', { key: 'circle', cx: '11', cy: '11', r: '8' }),
+                React.createElement('line', { key: 'line', x1: '21', y1: '21', x2: '16.65', y2: '16.65' })
+            ]);
         };
 
         // Main EventSearch component
@@ -83,7 +112,8 @@
                         }
                         const data = await response.json();
                         setEvents(data);
-                        setFilteredEvents(data);
+                        // Only show event 1100 by default
+                        setFilteredEvents({ "1100": data["1100"] });
                         setLoading(false);
                     } catch (err) {
                         setError(err.message);
@@ -94,13 +124,39 @@
             }, []);
 
             React.useEffect(() => {
+                if (!searchTerm.trim()) {
+                    // Show only event 1100 when search is empty
+                    setFilteredEvents({ "1100": events["1100"] });
+                    return;
+                }
+
+                const searchTermLower = searchTerm.toLowerCase();
                 const filtered = Object.entries(events).reduce((acc, [id, event]) => {
                     const searchString = `${id} ${event.summary} ${event.description} ${event.category} ${event.subcategory}`.toLowerCase();
-                    if (searchString.includes(searchTerm.toLowerCase())) {
-                        acc[id] = event;
+                    
+                    // If the search term is numeric, prioritize exact Event ID matches
+                    if (/^\d+$/.test(searchTerm)) {
+                        if (id.startsWith(searchTerm)) {
+                            acc[id] = event;
+                        }
+                    } else {
+                        // For text searches, include if any field contains the search term
+                        if (searchString.includes(searchTermLower)) {
+                            acc[id] = event;
+                        }
                     }
                     return acc;
                 }, {});
+
+                // If no matches found and searching for a number, try partial matches
+                if (Object.keys(filtered).length === 0 && /^\d+$/.test(searchTerm)) {
+                    Object.entries(events).forEach(([id, event]) => {
+                        if (id.includes(searchTerm)) {
+                            filtered[id] = event;
+                        }
+                    });
+                }
+
                 setFilteredEvents(filtered);
             }, [searchTerm, events]);
 
@@ -131,10 +187,7 @@
                 React.createElement('div', { className: 'mb-8' },
                     React.createElement('h1', { className: 'text-3xl font-bold mb-4' }, 'Windows Event ID Search'),
                     React.createElement('div', { className: 'relative' },
-                        React.createElement('i', { 
-                            className: 'search-icon',
-                            'data-lucide': 'search'
-                        }),
+                        React.createElement(SearchIcon),
                         React.createElement(Input, {
                             type: 'text',
                             placeholder: 'Search by Event ID, summary, or description...',
@@ -207,9 +260,6 @@
         // Mount the app
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(React.createElement(EventSearch));
-
-        // Initialize Lucide icons
-        lucide.createIcons();
     </script>
 </body>
 </html>
